@@ -13,15 +13,23 @@ var curly = require('curly');
 curly.get('http://google.com', callback);
 curly.get('http://google.com').send(callback); // above is sugar for this
 
-curly.get('http://google.com').query({hello:'world'}, callback); // adds a query string
-curly.get('https://some-json-service.com').reuse().query({meh:'bar'}).json(callback); // reuse means adding keep-alive and we expect json back
+curly.get('http://google.com')
+	 .query({hello:'world'}, callback); // adds a query string
+
+curly.get('https://some-json-service.com')
+	 .reuse()
+	 .query({meh:'bar'})
+	 .json(callback); // reuse means adding keep-alive and we expect json back
 ```
 
 to use custom headers use the `headers` function
 
 ``` js
 curly.get('http://google.com').headers({'user-agent':'curly'}, callback);
-curly.get('http://google.com').headers({'user-agent':'curly'}).buffer(callback); // let's get is as a buffer
+
+curly.get('http://google.com')
+	 .headers({'user-agent':'curly'})
+	 .buffer(callback); // let's get is as a buffer
 ```
 
 curly can also stream and pipe
