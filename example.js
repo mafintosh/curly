@@ -1,10 +1,6 @@
 var curly = require('./index');
 
-var file = require('fs').createReadStream(__filename);
-
-curly.post('http://localhost:12345/echo')
-	.headers({'x-ian':'hello'})
-	.from(file)
-	.to(process.stdout);
-
-//curly.get('http://localhost:12345/query').proxy(response);
+curly.get('http://api.geonames.org/citiesJSON')
+	.headers({'x-meh':'hello'})
+	.query({north:'44.1',south:'-9.9', east:'-22.4', west:'55.2', lang:'de', username:'demo'})
+	.json(console.log);
