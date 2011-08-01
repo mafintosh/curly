@@ -202,11 +202,12 @@ Request.prototype._request = function() {
 				self.emit('data', data);
 			});
 			response.on('end', function() {
-				self.emit('end');
 				self.readable = false;
+				self.emit('end');
 			});
 			response.on('close', function() {
 				self.readable = false;
+				self.emit('close');
 			});
 			
 			self.emit('response', response);
