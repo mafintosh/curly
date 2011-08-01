@@ -1,0 +1,9 @@
+{
+ "name":"curly",
+ "version":"0.1.6",
+ "description":"a cascading request module",
+ "keywords": ["request", "https", "http"],
+ "dependencies": {"common":">=0.1.0", "buffoon":">=0.1.0"},
+ "author": "Mathias Buus Madsen <mathiasbuus@gmail.com>",
+ "main":"./index.js"
+}
