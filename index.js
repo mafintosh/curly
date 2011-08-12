@@ -33,6 +33,7 @@ var Request = common.emitter(function(method, options) {
 	this._checkStatus = true;
 	this._headers = {};
 	this._path = options.pathname || '/';
+	this._query = options.search || '';
 	this._req = null;
 	this._onresponse = common.future();
 });
@@ -83,7 +84,7 @@ Request.prototype.reuse = function(callback) {
 };
 Request.prototype.query = function(query, callback) {
 	query = querify(query);
-	this._path += query && ('?'+query);
+	this._query = query && ('?'+query);
 	return this._short(callback);
 };
 Request.prototype.path = function(path, callback) {
@@ -174,7 +175,7 @@ Request.prototype._request = function() {
 	if (!this._req) {
 		var self = this;
 		
-		this._options.path = this._path;
+		this._options.path = this._path + this._query;
 		this._options.headers = this._headers;
 		
 		this._req = this._lib.request(this._options);
