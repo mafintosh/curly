@@ -20,7 +20,7 @@ var pipe = function(response, output, callback) {
 var Request = common.emitter(function(method, options) {
 	this.readable = true;
 	this.writable = true;
-	
+
 	this._lib = options.protocol === 'https:' ? https : http;
 
 	this._options = {
@@ -62,10 +62,18 @@ Request.prototype.json = function(json, callback) {
 	this._encode = JSON.stringify;
 	this._decode = buffoon.json;
 
-	if (callback) { // we have a body
+	if (typeof json !== 'function') { // we have a body
 		this._headers['content-type'] = this._headers['content-type'] || 'application/json';
 	}
 	return this._short(json, callback);
+};
+Request.prototype.form = function(data, callback) {
+	this._encode = querify;
+
+	if (typeof data !== 'function') {
+		this._headers['content-type'] = this._headers['content-type'] || 'application/x-www-form-urlencoded';
+	}
+	return this._short(data, callback);
 };
 Request.prototype.buffer = function(buffer, callback) {	
 	this._decode = buffoon.buffer;
@@ -75,6 +83,11 @@ Request.prototype.buffer = function(buffer, callback) {
 Request.prototype.headers = function(headers, callback) {
 	this._headers = headers;
 
+	return this._short(callback);
+};
+Request.prototype.close = function(callback) {
+	this._headers.connection = 'close';
+	
 	return this._short(callback);
 };
 Request.prototype.reuse = function(callback) {
@@ -225,6 +238,10 @@ Request.prototype._request = function() {
 	var method = m.replace('del', 'DELETE').toUpperCase();
 	
 	exports[m] = function(url, callback) {	
+		if (url.indexOf('://') === -1) {
+			url = 'http://'+url;
+		}
+
 		var args = typeof callback !== 'function' && arguments.length > 1 ? Array.prototype.slice.call(arguments, 1) : [];
 		
 		if (typeof args[args.length-1] === 'function') {
@@ -241,6 +258,6 @@ Request.prototype._request = function() {
 			req.send(callback);
 		}
 		
-		return req;
+		return req.reuse();
 	};
 });
