@@ -208,7 +208,10 @@ Request.prototype._request = function() {
 				return;
 			}
 			if (self._checkStatus && !(/2\d\d/).test(response.statusCode)) {
-				self._onresponse.put(new Error('invalid status code: '+response.statusCode));
+				var err = new Error('invalid status code: '+response.statusCode);
+
+				err.statusCode = response.statusCode;
+				self._onresponse.put(err);
 				return;
 			}
 			
