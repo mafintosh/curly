@@ -29,6 +29,7 @@ var Request = common.emitter(function(method, options) {
 		port:options.port
 	};
 	
+	this._allowed = [];
 	this._piping = false;
 	this._checkStatus = true;
 	this._headers = {};
@@ -48,7 +49,7 @@ Request.prototype.send = function(body, callback) {
 	}
 	
 	var self = this;
-	
+
 	this._response(common.fork(callback, function(response) {
 		self._decode(response, callback);
 	}));
@@ -93,6 +94,10 @@ Request.prototype.close = function(callback) {
 Request.prototype.reuse = function(callback) {
 	this._headers.connection = 'keep-alive';
 	
+	return this._short(callback);
+};
+Request.prototype.allow = function(status, callback) {
+	this._allowed.push(status);
 	return this._short(callback);
 };
 Request.prototype.query = function(query, callback) {
@@ -197,8 +202,10 @@ Request.prototype._request = function() {
 		});
 		
 		var onresponse = function(response) {
+			var allowed = false;
+
 			self.response = response;
-			
+
 			if (self._checkStatus && (/3\d\d/).test(response.statusCode) && response.headers.location) {
 				var req = exports.get(response.headers.location).headers(self._headers);
 				
@@ -207,14 +214,21 @@ Request.prototype._request = function() {
 				req.on('response', onresponse);
 				return;
 			}
-			if (self._checkStatus && !(/2\d\d/).test(response.statusCode)) {
+			for (var i in self._allowed) {
+				if (response.statusCode === self._allowed[i]) {
+					allowed = true;
+					break;
+				}
+			}
+			if (self._checkStatus && !allowed && !(/2\d\d/).test(response.statusCode)) {
 				var err = new Error('invalid status code: '+response.statusCode);
 
 				err.statusCode = response.statusCode;
 				self._onresponse.put(err);
+				self.emit('response', response);
 				return;
 			}
-			
+
 			response.on('data', function(data) {
 				self.emit('data', data);
 			});
