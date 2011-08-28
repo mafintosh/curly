@@ -48,6 +48,8 @@ Request.prototype.send = function(body, callback) {
 		this._headers['content-length'] = this._headers['content-length'] || (Buffer.isBuffer(body) ? body.length : Buffer.byteLength(body));
 	}
 	
+	callback = callback || noop;
+
 	var self = this;
 
 	this._response(common.fork(callback, function(response) {
