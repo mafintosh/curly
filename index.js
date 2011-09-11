@@ -139,6 +139,8 @@ Request.prototype.to = function(output, callback) {
 };
 Request.prototype.pipe = Request.prototype.to;
 Request.prototype.proxy = function(proxy, callback) {
+	callback = callback || noop;
+
 	this._checkStatus = false;
 	this._response(function(err, response) {
 		if (err) {
