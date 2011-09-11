@@ -182,6 +182,12 @@ Request.prototype.resume = function() {
 		response.resume();
 	}));
 };
+Request.prototype.destroy = function() {
+	if (!this._req) {
+		return;
+	}
+	this._req.abort();
+};
 
 Request.prototype._short = function(a,b) {
 	return a ? this.send(a,b) : this;
