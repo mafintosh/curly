@@ -6,6 +6,7 @@ var parseURL = require('url').parse;
 var querify = require('querystring').stringify;
 
 var noop = function() {};
+var limit = Number.MAX_VALUE;
 
 var pipe = function(response, output, callback) {
 	callback = callback || noop;
@@ -23,7 +24,12 @@ var Request = common.emitter(function(method, options) {
 
 	this._lib = options.protocol === 'https:' ? https : http;
 
+	var agent = this._lib.getAgent(options.hostname, options.port);
+
+	agent.maxSockets = limit;
+
 	this._options = {
+		agent:agent,
 		method:method,
 		host:options.hostname,
 		port:options.port
@@ -259,6 +265,10 @@ Request.prototype._request = function() {
 		this._req.on('error', this._onresponse.put);
 	}
 	return this._req;
+};
+
+exports.maxSockets = function(num) {
+	limit = num;
 };
 
 ['get', 'del', 'head', 'post', 'put'].forEach(function(m) {
