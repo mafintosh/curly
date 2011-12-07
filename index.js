@@ -233,11 +233,14 @@ Request.prototype._request = function() {
 				}
 			}
 			if (self._checkStatus && !allowed && !(/2\d\d/).test(response.statusCode)) {
-				var err = new Error('invalid status code: '+response.statusCode);
-
-				err.statusCode = response.statusCode;
-				self._onresponse.put(err);
 				self.emit('response', response);
+
+				buffoon.string(response, function(_, errorMessage) {
+					var err = new Error('non-200 status code: '+response.statusCode+'\n'+(errorMessage || ''));
+
+					err.statusCode = response.statusCode;
+					self._onresponse.put(err);
+				});
 				return;
 			}
 
@@ -276,7 +279,7 @@ exports.config = function(config, b) {
 	return exports;
 };
 
-['get', 'del', 'head', 'post', 'put'].forEach(function(m) {
+['get', 'del', 'delete', 'head', 'post', 'put'].forEach(function(m) {
 	var method = m.replace('del', 'DELETE').toUpperCase();
 	
 	exports[m] = function(url, callback) {	
