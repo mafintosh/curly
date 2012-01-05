@@ -267,7 +267,11 @@ Request.prototype._request = function() {
 		};
 		
 		this._req.on('response', onresponse);
-		this._req.on('error', this._onresponse.put);
+		this._req.on('error', function(err) {
+			self.readable = self.writable = false;
+			self._onresponse.put(err);
+			self.emit('close');
+		});
 	}
 	return this._req;
 };
