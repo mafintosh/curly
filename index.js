@@ -31,6 +31,7 @@ var Request = common.emitter(function(method, options) {
 		port:options.port
 	};
 	
+	this._method = method;
 	this._allowed = [];
 	this._piping = false;
 	this._checkStatus = true;
@@ -59,8 +60,13 @@ Request.prototype.send = function(body, callback) {
 	}));
 	
 	if (!this._piping) {
+		if (!body && this._method !== 'GET' && this._method !== 'HEAD') {
+			this._headers['content-length'] = this._headers['content-length'] || 0;
+		}
+
 		this.end(body);		
 	}
+
 	return this;
 };
 Request.prototype.json = function(json, callback) {
