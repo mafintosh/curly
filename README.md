@@ -17,9 +17,8 @@ curly.get('http://google.com')
 	 .query({hello:'world'}, callback); // adds a query string
 
 curly.get('https://some-json-service.com')
-	 .reuse()
 	 .query({meh:'bar'})
-	 .json(callback); // reuse means adding keep-alive and we expect json back
+	 .json(callback); // we expect a JSON callback
 ```
 
 to use custom headers use the `headers` function
