@@ -33,7 +33,7 @@ var pool = function(size) {
 
 		this._options = {
 			method:method,
-			agent:(options.prototype === 'https:' ? httpsAgent : httpAgent),
+			agent:(options.protocol === 'https:' ? httpsAgent : httpAgent),
 			host:options.hostname,
 			port:options.port
 		};
