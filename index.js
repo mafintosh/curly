@@ -227,7 +227,7 @@ var pool = function(size) {
 				self.response = response;
 
 				if (self._checkStatus && (/3\d\d/).test(response.statusCode) && response.headers.location) {
-					var req = exports.get(response.headers.location).headers(self._headers);
+					var req = that.get(response.headers.location).headers(self._headers);
 					
 					req._decode = self._decode;
 					req.end();

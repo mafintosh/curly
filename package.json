@@ -1,6 +1,6 @@
 {
  "name":"curly",
- "version":"0.4.0",
+ "version":"0.4.1",
  "description":"a cascading request module",
  "keywords": ["request", "https", "http"],
  "dependencies": {"common":">=0.1.0", "buffoon":">=0.1.0"},
