@@ -76,6 +76,12 @@ var pool = function(size) {
 
 		return this;
 	};
+
+	Request.prototype.auth = function(auth, callback) {
+		this._options.auth = auth;
+		
+		return this._short(callback);
+	};
 	Request.prototype.json = function(json, callback) {
 		this._encode = JSON.stringify;
 		this._decode = buffoon.json;
