@@ -40,7 +40,6 @@ var pool = function(size) {
 		this.readable = true;
 		this.writable = true;
 
-
 		this._lib = options.protocol === 'https:' ? https : http;
 		this._options = options.socketPath ? {
 			method:method,
