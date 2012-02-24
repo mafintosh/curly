@@ -26,14 +26,29 @@ var pool = function(size) {
 	that.pooling = httpAgent && httpAgent.maxSockets;
 
 	var Request = common.emitter(function(method, options) {
+		if (options.protocol === 'unix:') {
+			options.protocol = 'http:';
+
+			var index = options.pathname.indexOf('.sock')+5;
+
+			options.socketPath = options.pathname.substring(0,index);
+			options.pathname = options.pathname.substring(index) || '/';
+		}
+
+		var agent = (options.protocol === 'https:' ? httpsAgent : httpAgent);
+
 		this.readable = true;
 		this.writable = true;
 
-		this._lib = options.protocol === 'https:' ? https : http;
 
-		this._options = {
+		this._lib = options.protocol === 'https:' ? https : http;
+		this._options = options.socketPath ? {
 			method:method,
-			agent:(options.protocol === 'https:' ? httpsAgent : httpAgent),
+			agent:agent,
+			socketPath:options.socketPath
+		} : {
+			method:method,
+			agent:agent,
 			host:options.hostname,
 			port:options.port
 		};
