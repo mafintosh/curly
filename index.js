@@ -64,6 +64,9 @@ var pool = function(size) {
 	});
 
 	Request.prototype.send = function(body, callback) {
+		if (!callback && typeof body !== 'function') {
+			callback = noop;
+		}
 		if (!callback) {
 			callback = body;
 			body = '';
