@@ -11,6 +11,7 @@ var Request = function(options) {
 	this.readable = true;
 	this.method = options.method || 'GET';
 	this.headers = options.headers || {};
+	this.path = options.path;
 	this.agent = options.agent;
 	this.maxRedirects = 20;
 
@@ -37,7 +38,7 @@ var Request = function(options) {
 	process.nextTick(function() {
 		if (self._piping || self._writing || !self.writable) return;
 		self.headers['content-length'] = 0;
-		self._request().end();
+		self.end();
 	});
 };
 
@@ -139,7 +140,6 @@ Request.prototype._send = function() {
 			self.finish('end');
 		});
 		res.on('close', function() {
-			console.log('res close');
 			self.finish('close');
 		});
 	});
@@ -163,7 +163,8 @@ Request.prototype._request = function() {
 	return this.request || this._send();
 };
 
-var send = function(options) {
+var send = function(options, onrequest) {
+	options.method = options.method || 'GET';
 	options.url = options.url.indexOf('://') === -1 ? 'http://'+options.url : options.url;
 	options.query = options.query || options.qs;
 
@@ -178,6 +179,11 @@ var send = function(options) {
 
 	var request = new Request(parsed);
 	var body = options.body;
+
+	request.once('start', function() {
+		if (!onrequest || onrequest === send) return;
+		onrequest(request);
+	});
 
 	if (options.pool || options.pool === false) {
 		parsed.agent = options.pool;
@@ -243,7 +249,7 @@ var use = function(fn) {
 		curly[method] = function(url, options, callback) {
 			options = transform(url, options, callback);
 			options.method = verb;
-			return fn(options);
+			return fn(options, send);
 		};
 	});
 	return curly;

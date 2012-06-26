@@ -38,13 +38,10 @@ var curly = require('curly');
 var myapi = curly.use(function(options, send) {
 	options.url = 'http://myapi.com'+options.url;
 
-	var request = send(options);
-
-	request.on('start', function() {
-		// this event is called just before the request is started
+	return send(options, function(request) {
+		// this function is called just before the request is started
 		request.setHeader('Authorization', 'some signing stuff here');
 	});
-	return request;
 });
 
 myapi('/hello', function(err, res, body) {
