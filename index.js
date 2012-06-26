@@ -187,7 +187,7 @@ var send = function(options) {
 		body = qs.stringify(options.form);
 	}
 	if (options.json) {
-		if (method !== 'GET' && method !== 'HEAD') {
+		if (options.method !== 'GET' && options.method !== 'HEAD') {
 			parsed.headers['content-type'] = 'application/json; charset=utf-8';
 			body = JSON.stringify(typeof options.json !== 'boolean' ? options.json : body);
 		}
