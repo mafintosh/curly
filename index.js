@@ -14,6 +14,7 @@ var Request = function(options) {
 	this.path = options.path;
 	this.agent = options.agent;
 	this.maxRedirects = 20;
+	this.retries = options.retries || 0;
 
 	this._options = options;
 	this._paused = false;
@@ -52,27 +53,20 @@ Request.prototype.setEncoding = function(encoding) {
 	}
 	return this;
 };
-Request.prototype.setHeaders = function(map) {
-	var self = this;
-
-	Object.keys(map).forEach(function(name) {
-		self.setHeader(name, map[name]);
-	});
-	return this;
-};
 Request.prototype.setHeader = function(name, val) {
 	this.headers[name.toLowerCase()] = val;
 	this._request().setHeader(name, val);
 	return this;
 };
-Request.prototype.pipe = function(dest) {
-	var self = this;
-
-	if (dest.setHeader) {
-		Object.keys(self.headers).forEach(function(name) {
-			dest.setHeader(name, self.headers[name]);
+Request.prototype.pipe = function(dest, opt) {
+	this.once('response', function(res) {
+		if (!dest.setHeader) return;
+		Object.keys(res.headers).forEach(function(name) {
+			if (dest.getHeader && dest.getHeader(name)) return;
+			dest.setHeader(name, res.headers[name]);
 		});
-	}
+		dest.statusCode = res.statusCode;
+	});
 	return Stream.prototype.pipe.apply(this, arguments);
 };
 Request.prototype.write = function(a,b) {
@@ -90,6 +84,7 @@ Request.prototype.end = function(a,b) {
 	return this._request().end(a,b);
 };
 Request.prototype.destroy = function() {
+	this.retries = 0;
 	this._request().abort();
 	this.finish('close');
 };
@@ -106,7 +101,7 @@ Request.prototype.finish = function(name, val) {
 	this.readable = this.writable = false;
 	this.emit(name, val);
 };
-Request.prototype._send = function() {
+Request.prototype._send = function(silent) {
 	this._options.agent = this.agent;
 	this._options.headers = this.headers;
 
@@ -118,10 +113,11 @@ Request.prototype._send = function() {
 		if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
 			if (!self.maxRedirects--) return self.finish('close', new Error('too many redirects'));
 			self._options = parseURL(res.headers.location);
-			self._send().end();
+			self._send(true).end();
 			return;
 		}
 
+		self.retries = 0;
 		self.response = res;
 		self.emit('response', res);
 
@@ -149,15 +145,28 @@ Request.prototype._send = function() {
 	});
 	request.on('error', function(err) {
 		if (request !== self.request) return;
-		self.finish('close', err);
+		if (!self.retry()) return self.finish('close', err);
+		request = null;
 	});
 	request.on('drain', function() {
 		if (request !== self.request) return;
 		self.emit('drain');
 	});
-
-	this.emit('request', request);
+	if (!silent) {
+		this.emit('request', request);	
+	}
 	return request;
+};
+Request.prototype.retry = function() {
+	var self = this;
+
+	if (!this.retries || this._writing) return false;
+	this.retries--;
+	setTimeout(function() {
+		if (!self.readable) return;
+		self._send(true).end();
+	}, 5000);
+	return true;
 };
 Request.prototype._request = function() {
 	return this.request || this._send();
@@ -173,17 +182,12 @@ var send = function(options, onrequest) {
 	}
 
 	var parsed = parseURL(options.url);
-
-	parsed.headers = options.headers || {};
-	parsed.agent = options.agent;
-
-	var request = new Request(parsed);
 	var body = options.body;
 
-	request.once('start', function() {
-		if (!onrequest || onrequest === send) return;
-		onrequest(request);
-	});
+	parsed.retries = options.retry === true ? 5 : options.retry;
+	parsed.method = options.method;
+	parsed.headers = options.headers || {};
+	parsed.agent = options.agent;
 
 	if (options.pool || options.pool === false) {
 		parsed.agent = options.pool;
@@ -201,8 +205,18 @@ var send = function(options, onrequest) {
 	}
 	if (body) {
 		parsed.headers['content-length'] = Buffer.isBuffer(body) ? body.length : Buffer.byteLength(body);
-		parsed.write(body);
-		parsed.end();
+	}
+
+	var request = new Request(parsed);
+
+	request.once('start', function() {
+		if (!onrequest || onrequest === send) return;
+		onrequest(request);
+	});
+
+	if (body) {
+		request.write(body);
+		request.end();
 	}
 	if (!options.callback) return request;
 
@@ -255,5 +269,4 @@ var use = function(fn) {
 	return curly;
 };
 
-// TODO: add whitelist of allowed headers!
 module.exports = use(send);
