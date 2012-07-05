@@ -5,6 +5,8 @@ var parseURL = url.parse;
 
 var METHODS      = 'get head post put del'.split(' ');
 var HTTP_METHODS = 'GET HEAD POST PUT DELETE'.split(' ');
+var GET_HEADERS  = 'content-length content-type content-range last-modified etag'.split(' ');
+var PUT_HEADERS  = 'content-length content-type range if-modified-since if-none-match'.split(' ');
 
 var Request = function(options) {
 	this.writable = true;
@@ -29,9 +31,12 @@ var Request = function(options) {
 
 	this.once('pipe', function(from) {
 		self._piping = true;
-		Object.keys(from.headers || {}).forEach(function(name) {
-			self.headers[name] = self.headers[name] || from.headers[name];
-		});
+		if (from.headers) {
+			PUT_HEADERS.forEach(function(name) {
+				if (!from.headers[name]) return;
+				self.headers[name] = self.headers[name] || from.headers[name];
+			});			
+		}
 		if (typeof from.length === 'number') {
 			self.headers['content-length'] = self.headers['content-length'] || from.length;
 		}
@@ -55,13 +60,13 @@ Request.prototype.setEncoding = function(encoding) {
 };
 Request.prototype.setHeader = function(name, val) {
 	this.headers[name.toLowerCase()] = val;
-	this._request().setHeader(name, val);
 	return this;
 };
 Request.prototype.pipe = function(dest, opt) {
 	this.once('response', function(res) {
 		if (!dest.setHeader) return;
-		Object.keys(res.headers).forEach(function(name) {
+		GET_HEADERS.forEach(function(name) {
+			if (!res.headers[name]) return;
 			if (dest.getHeader && dest.getHeader(name)) return;
 			dest.setHeader(name, res.headers[name]);
 		});
@@ -77,15 +82,18 @@ Request.prototype.write = function(a,b) {
 	return this._request().write(a,b);
 };
 Request.prototype.end = function(a,b) {
+	this.writable = false;
 	if (!this._writing) {
-		this.writable = false;
+		this._writing = true;
 		this.emit('start');
 	}
 	return this._request().end(a,b);
 };
 Request.prototype.destroy = function() {
 	this.retries = 0;
-	this._request().abort();
+	if (this.request) {
+		this.request.abort();
+	}
 	this.finish('close');
 };
 Request.prototype.pause = function() {
@@ -104,6 +112,7 @@ Request.prototype.finish = function(name, val) {
 Request.prototype._send = function(silent) {
 	this._options.agent = this.agent;
 	this._options.headers = this.headers;
+	this._options.path = this.path;
 
 	var self = this;
 	var lib = this._options.protocol === 'http:' ? require('http') : require('https');
