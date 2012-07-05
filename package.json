@@ -1,6 +1,6 @@
 {
  "name":"curly",
- "version":"0.6.0",
+ "version":"0.6.1",
  "description":"a http request module for node and the browser",
  "keywords": ["request", "https", "http"],
  "author": "Mathias Buus Madsen <mathiasbuus@gmail.com>"

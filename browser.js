@@ -116,7 +116,7 @@
 	};
 	var use = function(fn) {
 		var curly = function(url, options, callback) {
-			return fn(transform(url,options,callback), send);
+			return fn(transform(url,options,callback));
 		};
 
 		curly.use = use;
@@ -124,7 +124,7 @@
 			curly[method] = function(url, options, callback) {
 				options = transform(url, options, callback);
 				options.method = method.replace('del', 'delete').toUpperCase();
-				return fn(options, send);
+				return fn(options);
 			};
 		});
 		return curly;
@@ -136,8 +136,7 @@
 		}
 	};
 
-	var curly = window.curly = use(send);
-
+	window.curly = use(send);
 	if (typeof module === 'undefined') return;
-	module.exports = curly;
+	module.exports = window.curly;
 }());

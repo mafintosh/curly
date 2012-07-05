@@ -5,35 +5,35 @@ var parseURL = url.parse;
 
 var METHODS      = 'get head post put del'.split(' ');
 var HTTP_METHODS = 'GET HEAD POST PUT DELETE'.split(' ');
-var GET_HEADERS  = 'content-length content-type content-range last-modified etag'.split(' ');
-var PUT_HEADERS  = 'content-length content-type range if-modified-since if-none-match'.split(' ');
+var BLACKLIST    = {expect:1,host:1};
 
 var Request = function(options) {
 	this.writable = true;
 	this.readable = true;
 	this.method = options.method || 'GET';
 	this.headers = options.headers || {};
-	this.path = options.path;
+	this.url = options.path; // we name it url as it's called url on http.ServerRequest
 	this.agent = options.agent;
+
+	this.bytesWritten = 0;
 	this.maxRedirects = 20;
 	this.retries = options.retries || 0;
-
-	this._options = options;
-	this._paused = false;
-	this._writing = false;
-	this._piping = false;
-	this._encoding = null;
-	
 	this.request = null;
 	this.response = null;
 
+	this._options = options;
+	this._encoding = null;
+	this._paused = false;
+	this._open = false;
+	this._piping = false;
+	
 	var self = this;
 
 	this.once('pipe', function(from) {
 		self._piping = true;
 		if (from.headers) {
-			PUT_HEADERS.forEach(function(name) {
-				if (!from.headers[name]) return;
+			Object.keys(from.headers).forEach(function(name) {
+				if (!from.headers[name] || BLACKLIST[name]) return;
 				self.headers[name] = self.headers[name] || from.headers[name];
 			});			
 		}
@@ -42,7 +42,7 @@ var Request = function(options) {
 		}
 	});
 	process.nextTick(function() {
-		if (self._piping || self._writing || !self.writable) return;
+		if (self._piping || self.bytesWritten || !self.writable) return;
 		self.headers['content-length'] = 0;
 		self.end();
 	});
@@ -65,9 +65,8 @@ Request.prototype.setHeader = function(name, val) {
 Request.prototype.pipe = function(dest, opt) {
 	this.once('response', function(res) {
 		if (!dest.setHeader) return;
-		GET_HEADERS.forEach(function(name) {
-			if (!res.headers[name]) return;
-			if (dest.getHeader && dest.getHeader(name)) return;
+		Object.keys(res.headers).forEach(function(name) {
+			if (dest.getHeader && dest.getHeader(name) || BLACKLIST[name]) return;
 			dest.setHeader(name, res.headers[name]);
 		});
 		dest.statusCode = res.statusCode;
@@ -75,18 +74,11 @@ Request.prototype.pipe = function(dest, opt) {
 	return Stream.prototype.pipe.apply(this, arguments);
 };
 Request.prototype.write = function(a,b) {
-	if (!this._writing) {
-		this._writing = true;
-		this.emit('start');
-	}
+	this.bytesWritten += a.length;
 	return this._request().write(a,b);
 };
 Request.prototype.end = function(a,b) {
 	this.writable = false;
-	if (!this._writing) {
-		this._writing = true;
-		this.emit('start');
-	}
 	return this._request().end(a,b);
 };
 Request.prototype.destroy = function() {
@@ -109,10 +101,22 @@ Request.prototype.finish = function(name, val) {
 	this.readable = this.writable = false;
 	this.emit(name, val);
 };
+Request.prototype.retry = function() {
+	var self = this;
+
+	if (!this.retries || this._open) return false;
+	this.retries--;
+	setTimeout(function() {
+		if (!self.readable) return;
+		self._send(true).end();
+	}, 5000);
+	return true;
+};
 Request.prototype._send = function(silent) {
-	this._options.agent = this.agent;
+	this._options.method = this.method;
 	this._options.headers = this.headers;
-	this._options.path = this.path;
+	this._options.agent = this.agent;
+	this._options.path = this.url;
 
 	var self = this;
 	var lib = this._options.protocol === 'http:' ? require('http') : require('https');
@@ -161,27 +165,19 @@ Request.prototype._send = function(silent) {
 		if (request !== self.request) return;
 		self.emit('drain');
 	});
-	if (!silent) {
-		this.emit('request', request);	
-	}
+	if (silent) return request;
+	this.emit('request', request);	
 	return request;
 };
-Request.prototype.retry = function() {
-	var self = this;
-
-	if (!this.retries || this._writing) return false;
-	this.retries--;
-	setTimeout(function() {
-		if (!self.readable) return;
-		self._send(true).end();
-	}, 5000);
-	return true;
-};
 Request.prototype._request = function() {
+	if (!this._open) {
+		this._open = true;
+		this.emit('open');
+	}
 	return this.request || this._send();
 };
 
-var send = function(options, onrequest) {
+var send = function(options) {
 	options.method = options.method || 'GET';
 	options.url = options.url.indexOf('://') === -1 ? 'http://'+options.url : options.url;
 	options.query = options.query || options.qs;
@@ -217,11 +213,6 @@ var send = function(options, onrequest) {
 	}
 
 	var request = new Request(parsed);
-
-	request.once('start', function() {
-		if (!onrequest || onrequest === send) return;
-		onrequest(request);
-	});
 
 	if (body) {
 		request.write(body);
@@ -262,7 +253,7 @@ var transform = function(url, options, callback) {
 };
 var use = function(fn) {
 	var curly = function(url, options, callback) {
-		return fn(transform(url, options, callback), send);
+		return fn(transform(url, options, callback));
 	};
 
 	curly.use = use;
@@ -272,7 +263,7 @@ var use = function(fn) {
 		curly[method] = function(url, options, callback) {
 			options = transform(url, options, callback);
 			options.method = verb;
-			return fn(options, send);
+			return fn(options);
 		};
 	});
 	return curly;
