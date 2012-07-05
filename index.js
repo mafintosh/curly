@@ -218,7 +218,7 @@ var send = function(options, onrequest) {
 		request.write(body);
 		request.end();
 	}
-	if (!options.callback) return request;
+	if (!options.callback || options.buffer === false) return request;
 
 	var buffer = '';
 
