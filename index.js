@@ -260,7 +260,7 @@ var use = function(fn) {
 	METHODS.forEach(function(method, i) {
 		var verb = HTTP_METHODS[i];
 
-		curly[method] = function(url, options, callback) {
+		curly[method] = curly[verb] = function(url, options, callback) {
 			options = transform(url, options, callback);
 			options.method = verb;
 			return fn(options);
