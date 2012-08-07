@@ -35,13 +35,16 @@ The real power of curly lies in its extension interface. If you want to implemen
 
 ``` js
 var curly = require('curly');
-var myapi = curly.use(function(options, send) {
+var myapi = curly.use(function(options) {
 	options.url = 'http://myapi.com'+options.url;
 
-	return send(options, function(request) {
+	var req = curly(options);
+	
+	req.once('open', function() {
 		// this function is called just before the request is started
-		request.setHeader('Authorization', 'some signing stuff here');
+		req.setHeader('Authorization', 'some signing stuff here');
 	});
+	return req;
 });
 
 myapi('/hello', function(err, res, body) {
